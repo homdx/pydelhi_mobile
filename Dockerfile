@@ -68,7 +68,7 @@ COPY . .
 
 RUN buildozer android debug || /bin/true
 
-RUN cp /home/user/hostcwd/.buildozer/android/platform/build/dists/conference/build/outputs/apk/conference-debug.apk .
+RUN cp /home/user/hostcwd/.buildozer/android/platform/build/dists/conference/bin/PyDelhiConf2017-0.3-debug.apk .
 
 CMD tail -f /var/log/faillog
 
