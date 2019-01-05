@@ -19,7 +19,7 @@ RUN apt update -qq > /dev/null && \
     apt install -qq --yes --no-install-recommends \
     locales && \
     locale-gen en_US.UTF-8 && \
-    apt install -qq --yes mc openssh-client nano wget curl pkg-config autoconf automake libtool
+    apt install -qq --yes mc openssh-client nano wget curl pkg-config autoconf automake libtool time
 ENV LANG="en_US.UTF-8" \
     LANGUAGE="en_US.UTF-8" \
     LC_ALL="en_US.UTF-8"
@@ -45,7 +45,7 @@ USER ${USER}
 WORKDIR ${WORK_DIR}
 
 # installs buildozer and dependencies
-RUN pip install --user Cython==0.25.2 buildozer
+RUN pip install --user Cython==0.25.2 buildozer==0.34 sh
 # calling buildozer adb command should trigger SDK/NDK first install and update
 # but it requires a buildozer.spec file
 RUN cd /tmp/ && buildozer init && buildozer android adb -- version \
@@ -68,7 +68,7 @@ USER ${USER}
 COPY . app
 
 RUN  sudo chown user -R app/ \
-  && buildozer android debug || /bin/true
+  && cd app && time buildozer android debug || /bin/true
 
 RUN cp /home/user/hostcwd/.buildozer/android/platform/build/dists/conference/bin/PyDelhiConf2017-0.3-debug.apk .
 
