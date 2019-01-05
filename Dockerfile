@@ -59,14 +59,16 @@ RUN sed s/'name="java.target" value="1.5"'/'name="java.target" value="7"'/ -i ${
 #  && cd ~/.buildozer/ \
 #  && tar -xvf crystax.tar.xz && rm ~/.buildozer/crystax.tar.xz 
 
-USER root
-RUN chown user /home/user/ -R && chown user /home/user/hostcwd
+#USER root
+
+#RUN chown user /home/user/ -R && chown user /home/user/hostcwd
 
 USER ${USER}
 
-COPY . .
+COPY . app
 
-RUN buildozer android debug || /bin/true
+RUN  sudo chown user -R app/ \
+  && buildozer android debug || /bin/true
 
 RUN cp /home/user/hostcwd/.buildozer/android/platform/build/dists/conference/bin/PyDelhiConf2017-0.3-debug.apk .
 
