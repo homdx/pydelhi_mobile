@@ -1,0 +1,8 @@
+--arch=armeabi-v7a
+--name 'Py Delhi'
+--package com.example.test
+--version 1
+--icon data/icon.png
+--presplash=../screen.png
+--permission=INTERNET
+--requirements=python2,android,openssl,kivy,futures,requests

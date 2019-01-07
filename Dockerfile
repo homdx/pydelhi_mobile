@@ -47,39 +47,97 @@ WORKDIR ${WORK_DIR}
 # installs buildozer and dependencies
 RUN pip install --user Cython==0.28.6 buildozer==0.37 sh
 
-ARG DOT_VERSION=0.1.1
-ARG DOT_HASH=631ee3c4aa0779850a3158481361f23ef052eb4416f2dbf27d501763778960a2
+ARG DOT_VERSION=0.1.2
+ARG DOT_HASH=7bd6384f49428c9c1f20efdc407fcc170800e457ffbe728b9586529d963419ca
 ARG DOT_PATH=https://github.com/homdx/pydelhi_mobile/releases/download
-ARG DOT_FILE=android-buildozer-home.tar.gz
-ARG DOT_HASH2=3cd98a9574ef0c2eb56a5802fc2621f25997d37c6922113d0d0e25c1b311882d
-ARG DOT_FILE2=dot-buldozer-py2.tar.gz
-ARG DOT_FILE3=gradle-home.tar.gz 
-ARG DOT_HASH3=4f252d994929e2159c4d35acf482c10f05f82f45287202086c2933693b8fa636
+ARG DOT_FILE=gradle-python.tar.gz
+
+ENV SDK_TOOLS="sdk-tools-linux-4333796.zip"
+ENV NDK_DL="https://dl.google.com/android/repository/android-ndk-r17c-linux-x86_64.zip"
+ENV NDKVER=r17c
+ENV NDKDIR=/ndk/
+ENV NDKAPI=21
+ENV ANDROIDAPI=28
+ENV PIP=pip3
+
+USER root
+
+# Install base packages
+RUN apt update && apt install -y zip python3 python-pip python python3-virtualenv python-virtualenv python3-pip curl wget lbzip2 bsdtar && dpkg --add-architecture i386 && apt update && apt install -y build-essential libstdc++6:i386 zlib1g-dev zlib1g:i386 openjdk-8-jdk libncurses5:i386 && apt install -y libtool automake autoconf unzip pkg-config git ant gradle rsync python3.7-venv
+
+# Install Android SDK:
+RUN mkdir /sdk-install/ && chown user /sdk-install
 
 USER ${USER}
 
-COPY . app
+RUN cd /sdk-install && wget --quiet https://dl.google.com/android/repository/${SDK_TOOLS}
 
-#Use SDK cache and prebuild Cython files
-RUN  sudo chown user -R app/ \
-  &&  set -ex \
+RUN cd /sdk-install && unzip ./sdk-tools-*.zip && chmod +x ./tools//bin/sdkmanager
+RUN yes | /sdk-install/tools/bin/sdkmanager --licenses
+RUN /sdk-install/tools/bin/sdkmanager --update
+RUN /sdk-install/tools/bin/sdkmanager "platform-tools" "platforms;android-28" "build-tools;28.0.3"
+# Obtain Android NDK:
+RUN mkdir -p /tmp/ndk/ && cd /tmp/ndk/ && wget --quiet ${NDK_DL} && unzip -q android-ndk*.zip && sudo mv android-*/ /ndk/
+
+USER root
+
+# Final command line preparation:
+RUN echo '#!/usr/bin/python3\n\
+import json\n\
+import os\n\
+print("echo \"\"")\n\
+print("echo \"To build a kivy demo app, use this command:\"")\n\
+if os.environ["PIP"] == "pip2":\n\
+    print("echo \"cd ~/testapp-sdl2-keyboard && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --requirements=kivy,python2 --private .\"")\n\
+    print("shopt -s expand_aliases")\n\
+    print("alias testbuild=\"cd ~/testapp-sdl2-keyboard && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --requirements=kivy,python2 --private . && cp *.apk ~/output\"")\n\
+    print("alias testbuild_webview=\"cd ~/testapp-webview-flask && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --bootstrap webview --requirements=python2,flask --private . && cp *.apk ~/output\"")\n\
+    print("alias testbuild_service_only=\"cd ~/testapp-service_only-nogui && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --bootstrap service_only --requirements=pyjnius,python2 --private . && cp *.apk ~/output\"")\n\
+else:\n\
+    print("echo \"cd ~/testapp-sdl2-keyboard && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --requirements=kivy,python3 --private .\"")\n\
+    print("shopt -s expand_aliases")\n\
+    print("alias testbuild=\"cd ~/testapp-sdl2-keyboard && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --requirements=kivy,python3 --private . && cp *.apk ~/output\"")\n\
+    print("alias testbuild_webview=\"cd ~/testapp-webview-flask && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --bootstrap webview --requirements=python3,flask --private . && cp *.apk ~/output\"")\n\
+    print("alias testbuild_service_only=\"cd ~/testapp-service_only-nogui && p4a apk --arch=armeabi-v7a --name test --package com.example.test --version 1 --bootstrap service_only --requirements=pyjnius,python3 --private . && cp *.apk ~/output\"")\n\
+launch_cmd="{LAUNCH_CMD} "\n\
+print("export ANDROIDAP='$ANDROIDAPI'" +\n\
+    " ANDROIDNDKVER='$NDKVER'" +\n\
+    " NDKAPI='$NDKAPI'" +\n\
+    " GRADLE_OPTS=\"-Xms1724m -Xmx5048m -Dorg.gradle.jvmargs='"'"'-Xms1724m -Xmx5048m'"'"'\""+\n\
+    " JAVA_OPTS=\"-Xms1724m -Xmx5048m\"" +\n\
+    " ANDROIDSDK=/sdk-install/ ANDROIDNDK=\"'$NDKDIR'\"")\n\
+print(launch_cmd)' > /cmdline.py && chmod +x /cmdline.py
+
+USER ${USER}
+
+RUN pip3 list
+
+RUN sudo apt update && echo sudo apt install -y libwebkit2gtk-4.0-dev gtk+-3.0 \
+&& cd ${WORK_DIR} && sudo mkdir 1 && sudo chown user 1 && cd 1 && git clone --single-branch -b master https://github.com/kivy/python-for-android \
+&& cd ${WORK_DIR}/1/python-for-android \
+&& python3 setup.py build && sudo python3 setup.py install && pip3 install Cython && pip3 list
+
+USER ${USER}
+
+#Python2 Python3 cache and gradle cache files
+RUN  set -ex \
   && cd ${HOME_DIR} && sudo time -p aria2c -x 5 ${DOT_PATH}/${DOT_VERSION}/${DOT_FILE} \
   && echo "${DOT_HASH}  ${DOT_FILE}" | sha256sum -c \
-  && time -p tar -xf ${DOT_FILE} && sudo rm ${DOT_FILE} \
-  && sudo time -p aria2c -x 5 ${DOT_PATH}/${DOT_VERSION}/${DOT_FILE3} \
-  && echo "${DOT_HASH3}  ${DOT_FILE3}" | sha256sum -c \
-  && time -p tar -xf ${DOT_FILE3} && sudo rm ${DOT_FILE3} \
-  && cd ${WORK_DIR}/app && time -p aria2c -x 5 ${DOT_PATH}/${DOT_VERSION}/${DOT_FILE2} \
-  && echo "${DOT_HASH2}  ${DOT_FILE2}" | sha256sum -c \
-  && time -p tar -xf ${DOT_FILE2} && rm ${DOT_FILE2}
+  && time -p tar -xf ${DOT_FILE} && sudo rm ${DOT_FILE}
 
-#Fist build and maked with this (commented) RUN command
-#RUN cd ${WORK_DIR}/app && cp -vf buildozer.old buildozer.spec && echo "temporatory build api 21" && time -p buildozer android debug || echo rm -rf .buildozer \
-#    && cd  ~/.buildozer/android/platform && rm -vf *.zip *.gz
+COPY . app
 
-RUN cd ${WORK_DIR}/app \
-    && cp -vf buildozer.new buildozer.spec && echo "build api 27" && time -p buildozer android debug || cd  ~/.buildozer/android/platform && rm -vf *.zip *.tgz *.gz \ 
-    && sudo cp /home/user/hostcwd/app/.buildozer/android/platform/build/dists/conference/build/outputs/apk/debug/*.apk ${WORK_DIR}
+
+VOLUME /home/user/result
+
+RUN echo Python3 FunCrash && sudo mkdir app2 && sudo chown user app2 && cd app2 && git clone https://github.com/homdx/funcrash && cd funcrash && git checkout test && cp -vf buildozer-python31.spec buildozer.spec \
+&& patch -p0 <main-without-cred.patch \
+&& ANDROIDAP=28 ANDROIDNDKVER=r17c NDKAPI=21 GRADLE_OPTS="-Xms1724m -Xmx5048m -Dorg.gradle.jvmargs='-Xms1724m -Xmx5048m'" JAVA_OPTS="-Xms1724m -Xmx5048m" ANDROIDSDK=/sdk-install/ ANDROIDNDK="/ndk/" p4a apk --arch=armeabi-v7a --name 'Fun Crash' --package com.example.test --version 1 --orientation=landscape --presplash=images/splashscreen01.png --icon=images/icon01.png --requirements=kivy,python3,paho-mqtt --private . \
+&& sudo chmod 777 ${HOME_DIR}/result && cp -v /home/user/.local/share/python-for-android/dists/unnamed_dist_1/build/outputs/apk/debug/*debug.apk ${HOME_DIR}/result/py3-funcrash.apk
+
+RUN echo Python3 PyDelhi && sudo chown user -R app/ && cd app && cp .p4a pydelhiconf/ && cd pydelhiconf && ANDROIDAP=28 ANDROIDNDKVER=r17c NDKAPI=21 GRADLE_OPTS="-Xms1724m -Xmx5048m -Dorg.gradle.jvmargs='-Xms1724m -Xmx5048m'" JAVA_OPTS="-Xms1724m -Xmx5048m" ANDROIDSDK=/sdk-install/ ANDROIDNDK="/ndk/"  p4a apk --private . && sudo cp '/home/user/.local/share/python-for-android/dists/unnamed_dist_2/build/outputs/apk/debug/unnamed_dist_2-debug.apk' ${HOME_DIR}/result/py3-pydelhi.apk
+
+RUN echo Python2 PyDelhi && cd app && cp -vf p4a-py2 .p4a && cp -vf .p4a pydelhiconf/ && cd pydelhiconf && ANDROIDAP=28 ANDROIDNDKVER=r17c NDKAPI=21 GRADLE_OPTS="-Xms1724m -Xmx5048m -Dorg.gradle.jvmargs='-Xms1724m -Xmx5048m'" JAVA_OPTS="-Xms1724m -Xmx5048m" ANDROIDSDK=/sdk-install/ ANDROIDNDK="/ndk/" p4a apk --private . && sudo cp '/home/user/.local/share/python-for-android/dists/unnamed_dist_3/build/outputs/apk/debug/unnamed_dist_3-debug.apk' ${HOME_DIR}/result/py2-pydelhi.apk
 
 CMD tail -f /var/log/faillog
 
