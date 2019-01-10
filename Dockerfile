@@ -47,10 +47,10 @@ WORKDIR ${WORK_DIR}
 # installs buildozer and dependencies
 RUN pip install --user Cython==0.28.6 buildozer==0.37 sh
 
-ARG DOT_VERSION=0.1.2
-ARG DOT_HASH=7bd6384f49428c9c1f20efdc407fcc170800e457ffbe728b9586529d963419ca
+ARG DOT_VERSION=0.1.3
+ARG DOT_HASH=f114a09ac02b9291a1d7b609710801e135d3cf327939ba5bf7273228c3c2e866
 ARG DOT_PATH=https://github.com/homdx/pydelhi_mobile/releases/download
-ARG DOT_FILE=gradle-python.tar.gz
+ARG DOT_FILE=python-gradle2.tar.gz
 
 ENV SDK_TOOLS="sdk-tools-linux-4333796.zip"
 ENV NDK_DL="https://dl.google.com/android/repository/android-ndk-r17c-linux-x86_64.zip"
@@ -112,18 +112,30 @@ USER ${USER}
 
 RUN pip3 list
 
-RUN sudo apt update && echo sudo apt install -y libwebkit2gtk-4.0-dev gtk+-3.0 \
-&& cd ${WORK_DIR} && sudo mkdir 1 && sudo chown user 1 && cd 1 && git clone --single-branch -b master https://github.com/kivy/python-for-android \
-&& cd ${WORK_DIR}/1/python-for-android \
-&& python3 setup.py build && sudo python3 setup.py install && pip3 install Cython && pip3 list
+RUN sudo apt update && echo sudo apt install -y libwebkit2gtk-4.0-dev gtk+-3.0
 
 USER ${USER}
 
 #Python2 Python3 cache and gradle cache files
-RUN  set -ex \
-  && cd ${HOME_DIR} && sudo time -p aria2c -x 5 ${DOT_PATH}/${DOT_VERSION}/${DOT_FILE} \
-  && echo "${DOT_HASH}  ${DOT_FILE}" | sha256sum -c \
-  && time -p tar -xf ${DOT_FILE} && sudo rm ${DOT_FILE}
+
+ARG DISABLECACHE
+
+RUN set -ex && \
+    if [ -z "$DISABLECACHE" ] ; \
+    then echo 'Now enable Cached files for Python2and3 and .gradle files. If you not need cache build with: --build-arg DISABLECACHE=something'; \
+    set -ex ; \
+    cd ${HOME_DIR} ; sudo time -p aria2c -x 5 ${DOT_PATH}/${DOT_VERSION}/${DOT_FILE} ; \
+    echo "${DOT_HASH}  ${DOT_FILE}" | sha256sum -c ; \
+    time -p sudo tar -xf ${DOT_FILE} ; sudo rm ${DOT_FILE} ; \
+    cd ${WORK_DIR}/p4acache/python-for-android ; \
+    python3 setup.py build ; sudo python3 setup.py install ; pip3 install Cython ; pip3 list ; \
+    else echo Cache are disabled = $DISABLECACHE; \
+    # Build full version \
+    cd ${WORK_DIR} ; sudo mkdir p4acache; sudo chown user p4acache; cd p4acache; git clone --single-branch -b master https://github.com/kivy/python-for-android ; \
+    cd ${WORK_DIR}/p4acache/python-for-android ; \
+    python3 setup.py build ; sudo python3 setup.py install ; pip3 install Cython ; pip3 list ; \
+    echo build Full version; \
+    fi
 
 COPY . app
 
