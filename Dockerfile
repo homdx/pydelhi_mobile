@@ -47,10 +47,10 @@ WORKDIR ${WORK_DIR}
 # installs buildozer and dependencies
 RUN pip install --user Cython==0.28.6 buildozer==0.37 sh
 
-ARG DOT_VERSION=0.1.3
-ARG DOT_HASH=f114a09ac02b9291a1d7b609710801e135d3cf327939ba5bf7273228c3c2e866
+ARG DOT_VERSION=0.1.4
+ARG DOT_HASH=c238faac1de5109a1553bc3ab80f70f0432e84d3b2c167119608e716f77b4ace
 ARG DOT_PATH=https://github.com/homdx/pydelhi_mobile/releases/download
-ARG DOT_FILE=python-gradle2.tar.gz
+ARG DOT_FILE=python3-gradle.tar.gz
 
 ENV SDK_TOOLS="sdk-tools-linux-4333796.zip"
 ENV NDK_DL="https://dl.google.com/android/repository/android-ndk-r17c-linux-x86_64.zip"
